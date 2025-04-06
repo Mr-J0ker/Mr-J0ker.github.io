@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/assets/css/style.css?v=b66566b8b6ea71b287f14ced317a0493da3e8325">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup theme-color -->
+<!-- start theme color meta headers -->
+<meta name="theme-color" content="#151515">
+<meta name="msapplication-navbutton-color" content="#151515">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- end theme color meta headers -->
+
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Cap | J0ker</title>
+<meta name="generator" content="Jekyll v3.9.3" />
+<meta property="og:title" content="Cap" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="SOC Analyst documenting stuff" />
+<meta property="og:description" content="SOC Analyst documenting stuff" />
+<link rel="canonical" href="http://localhost:4000/htb/Cap.html" />
+<meta property="og:url" content="http://localhost:4000/htb/Cap.html" />
+<meta property="og:site_name" content="J0ker" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2025-04-06T00:00:00+08:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Cap" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2025-04-06T00:00:00+08:00","datePublished":"2025-04-06T00:00:00+08:00","description":"SOC Analyst documenting stuff","headline":"Cap","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/htb/Cap.html"},"url":"http://localhost:4000/htb/Cap.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+  </head>
+
+  <body>
+
+    <header>
+      <div class="container">
+        <a id="a-title" href="/">
+          <h1>J0ker</h1>
+        </a>
+        <h2>SOC Analyst documenting stuff </h2>
+
+        <section id="downloads">
+          
+	  <!--<a href="https://github.com/Mr-J0ker/Mr-J0ker.github.io" class="btn btn-github"><span class="icon"></span>View on GitHub</a> -->
+        </section>
+      </div>
+    </header>
+
+    <div class="container">
+      <section id="main_content">
+        <small>6 April 2025</small>
+<h1>Cap</h1>
+
+<h1 id="summary">Summary</h1>
+<p>This is the first box in HTB Intro to Red Team track. It is a Linux box rated as easy.</p>
+
+<p>Initial enumeration show that the likely entry point seems to be the webapp. The webapp itself has limited features. It appears that a feature to download pcap files leaks the user credentials that allows me to capture user.txt and get a foothold on the machine. Privilege escalation is relatively straightforward after via Linux capabilities.</p>
+
+<h1 id="initial-enumeration">Initial Enumeration</h1>
+<p>Running the usual nmap scan, it appears there are limited services exposed - FTP, SSH, HTTP.
+<img src="/docs/assets/images/htb/Cap/enum1.png" alt="nmap results 1" />
+<img src="/docs/assets/images/htb/Cap/enum2.png" alt="nmap results 2" />
+<img src="/docs/assets/images/htb/Cap/enum3.png" alt="nmap results 3" /></p>
+
+<p>FTP does not allow anonymous login, and at this point we have no SSH credentials. Rather than attempting to bruteforce, HTTP is likely to be what will offer me a way onto the box.</p>
+
+<h1 id="enumerating-the-web-app">Enumerating the web app</h1>
+<p>The application looks relatively straightforward.
+<img src="/docs/assets/images/htb/Cap/dashboard.png" alt="webapp screenshot" />
+As usual, I got feroxbuster running to look for subdomains while I start to manually explore the site. It appears that all options under ‘Nathan’ do nothing except to bring us back to the same page, except for perhaps ‘Log Out’.</p>
+
+<p>Looking at the other menu options, it appears to map as below:</p>
+<ul>
+  <li>Security Snapshot: /capture -&gt; /data/{n}</li>
+  <li>IP Config: /ip</li>
+  <li>Network Status: /netstat</li>
+</ul>
+
+<p>Looking at ip and netstat I cannot help but try if command injection was possible but of course this is not the vulnerability on this app. I tried the ‘Search’ function but it appears to be doing nothing as well, pretty much ruling out the possibility of any SQL/command injection there.</p>
+
+<p>Admittedly I got lucky with this. Seeing no other way I thought it has to be related to the data captured by the pcap file and decided to revisit the option. It is then that feroxbuster shows that under /data, there is /1 and /2 as well. 
+<img src="/docs/assets/images/htb/Cap/feroxbuster.png" alt="feroxbuster results" /></p>
+
+<p>Thus, I decide to fire up Burp Suite as a proxy and enumerate for which are the valid endpoints. Setting the payload position and settings with Intruder, it appears that /data/0 may have some data whereas /data/1 seems to be a huge file which I guess is capturing my feroxbuster scan. 
+<img src="/docs/assets/images/htb/Cap/intruder_payload.png" alt="intruder payload" />
+<img src="/docs/assets/images/htb/Cap/intruder_position.png" alt="intruder_position" />
+<img src="/docs/assets/images/htb/Cap/intruder_results.png" alt="intruder results" /></p>
+
+<h1 id="examining-0pcap">Examining 0.pcap</h1>
+<p>Downloading 0.pcap, I fired up wireshark and had a look at the conversations in the file. It appears that there is FTP traffic in this file.
+<img src="/docs/assets/images/htb/Cap/wireshark_conversations.png" alt="pcap conversations" /></p>
+
+<p>And we get the credentials for Nathan after filtering for FTP. 
+<img src="/docs/assets/images/htb/Cap/pcap_ftp.png" alt="pcap ftp" /></p>
+
+<h1 id="accessing-ftp-for-usertxt">Accessing FTP for user.txt</h1>
+<p>Accessing FTP with Nathan’s credential, we manage to retrieve user.txt.
+<img src="/docs/assets/images/htb/Cap/ftp_user.txt.png" alt="user.txt" /></p>
+
+<h1 id="privilege-escalation">Privilege Escalation</h1>
+<p>Reusing Nathan’s credential, we managed to get a foothold on the box via SSH. This time round I enumerated for privilege escalation manually without linpeas. The usual sudo, suid, crontab all returns nothing. However, it appears that python has capability set on it. This is documented in gtfo and can be used for privilege escalation. And with that, I get root access to the box.
+<img src="/docs/assets/images/htb/Cap/python_cap.png" alt="python cap" />
+<img src="/docs/assets/images/htb/Cap/root.txt.png" alt="root.txt" /></p>
+
+<h1 id="post-root-exploration">Post-root exploration</h1>
+<p>With the box done, I thought I’ll take a look at the application itself. It seems that I was right - there is no specific function to deal with the ‘search’ function in the app. The pcap feature do indeed rely on granting python the capability so it is able to use tcpdump to capture the pcap file.</p>
+
+
+
+
+  <small>tags: <em>htb easy linux pcap capability</em></small>
+
+
+
+      </section>
+    </div>
+  </body>
+</html>
+
