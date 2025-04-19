@@ -2,7 +2,6 @@
 layout: post 
 title: Cap
 date: 6 Apr 2025
-tags: htb easy linux pcap capability
 ---
 # Summary
 This is the first box in HTB Intro to Red Team track. It is a Linux box rated as easy. 

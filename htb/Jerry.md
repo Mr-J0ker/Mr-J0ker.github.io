@@ -2,7 +2,6 @@
 layout: post 
 title: Jerry 
 date: 13 Apr 2025
-tags: htb easy Windows Tomcat 
 ---
 # Summary
 This is a Windows box rated as easy. 
