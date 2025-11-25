@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/assets/css/style.css?v=c10462c5577571db10d7e69839dea8eb9f47e3ef">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup theme-color -->
+<!-- start theme color meta headers -->
+<meta name="theme-color" content="#151515">
+<meta name="msapplication-navbutton-color" content="#151515">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- end theme color meta headers -->
+
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Knife | J0ker</title>
+<meta name="generator" content="Jekyll v3.9.3" />
+<meta property="og:title" content="Knife" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="SOC Analyst documenting stuff" />
+<meta property="og:description" content="SOC Analyst documenting stuff" />
+<link rel="canonical" href="http://localhost:4000/htb/Knife.html" />
+<meta property="og:url" content="http://localhost:4000/htb/Knife.html" />
+<meta property="og:site_name" content="J0ker" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2025-11-06T00:00:00+08:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Knife" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2025-11-06T00:00:00+08:00","datePublished":"2025-11-06T00:00:00+08:00","description":"SOC Analyst documenting stuff","headline":"Knife","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/htb/Knife.html"},"url":"http://localhost:4000/htb/Knife.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+  </head>
+
+  <body>
+
+    <header>
+      <div class="container">
+        <a id="a-title" href="/">
+          <h1>J0ker</h1>
+        </a>
+        <h2>SOC Analyst documenting stuff </h2>
+
+        <section id="downloads">
+          
+	  <!--<a href="https://github.com/Mr-J0ker/Mr-J0ker.github.io" class="btn btn-github"><span class="icon"></span>View on GitHub</a> -->
+        </section>
+      </div>
+    </header>
+
+    <div class="container">
+      <section id="main_content">
+        <small>6 November 2025</small>
+<h1>Knife</h1>
+
+<h1 id="summary">Summary</h1>
+<p>This is a Linux box rated as easy.</p>
+
+<p>Initial enumeration does not show many available openings. The web application returns an unusual header that turns out to be what gives the foothold on the machine. Privilege escalation is relatively straightforward after, though care needs to be taken since the exploit used is not an immediate reverse shell.</p>
+
+<h1 id="initial-enumeration">Initial Enumeration</h1>
+<p>Running the usual nmap scan, it appears there are limited services exposed - SSH, HTTP.
+<img src="/docs/assets/images/htb/Knife/nmap_results.png" alt="nmap results" /></p>
+
+<p>As usual, brute-forcing SSH immediately is not my kind of thing, so enumerating the web app looks to be the immediate path.</p>
+
+<h1 id="enumerating-the-web-app">Enumerating the web app</h1>
+<p>The application is a single page - no other clickable links for further exploration.<br />
+<img src="/docs/assets/images/htb/Knife/mainpage.png" alt="webapp screenshot" /></p>
+
+<p>Set Nikto and feroxbuster to run together. While feroxbuster does not seem to reveal any further directories, Nikto does reveal an unusual header response. 
+<img src="/docs/assets/images/htb/Knife/nikto.png" alt="unusual_header_value" /></p>
+
+<p>Here we can see the x-powered-by header to be PHP/8.1.0-dev. A quick search on searchsploit shows 49933.py - a vulnerable in the user-agent where there is a backdoor we can use. 
+<img src="/docs/assets/images/htb/Knife/php_backdoor.png" alt="php_dev_backdoor" /></p>
+
+<h1 id="getting-a-foothold">Getting a foothold</h1>
+<p>With this, getting a foothold is trivial. <br />
+<img src="/docs/assets/images/htb/Knife/foothold.png" alt="foothold" /></p>
+
+<h1 id="privilege-escalation">Privilege Escalation</h1>
+<p>Examining the exploit code we can see it is basically injecting command via the ‘User-Agentt’ header. 
+<img src="/docs/assets/images/htb/Knife/exploit_code.png" alt="exploit_code" /></p>
+
+<p>We will need to have a better revshell to allow us to escalate our privileges on this box, because privilege escalation is straightforward as well with the user’s permissions. 
+<img src="/docs/assets/images/htb/Knife/bash_revshell.png" alt="bash_revshell" />
+<img src="/docs/assets/images/htb/Knife/root.png" alt="root" /></p>
+
+
+
+
+
+
+      </section>
+    </div>
+  </body>
+</html>
+

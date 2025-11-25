@@ -7,3 +7,6 @@ This will document the boxes I have done related to Red-Teaming.
 [Sau](./htb/Sau.html) *linux request-baskets maltrail ssrf systemctl*	     
 [GoodGames](./htb/GoodGames.html) *linux sqli ssti docker*
 
+## HackTheBox - General Machines
+[Knife](./htb/Knife.html) *linux webapp*
+
